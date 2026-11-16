@@ -2,6 +2,8 @@
  "name": "ZOOZ LED",
  "short_name": "ZOOZ LED",
  "start_url": "./",
+ "scope": "./",
+ "description": "تحكم بشاشات LED من موبايلك",
  "display": "standalone",
  "background_color": "#0f1115",
  "theme_color": "#0f1115",

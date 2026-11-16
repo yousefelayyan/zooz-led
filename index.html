@@ -63,6 +63,8 @@
 
 <div class="wrap">
   <div id="noBt" class="warn"></div>
+  <button id="btnInstall" class="btn sec" style="display:none;margin-bottom:10px">📲 تثبيت التطبيق على الموبايل</button>
+  <div id="iosHint" class="warn"></div>
   <button id="btnConn" class="btn">🔵 اتصل بالشاشة</button>
 
   <div class="tabs">
@@ -321,6 +323,14 @@ $('btnSend').onclick=async()=>{
   }catch(e){ log('err '+e.message); msg('حدث خطأ، حاول مرة ثانية','#ff8080'); }
   busy=false; refreshSend(); setTimeout(()=>{$('prog').style.display='none';},1500);
 };
+
+// ===== install (PWA) =====
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; $('btnInstall').style.display='block'; });
+$('btnInstall').onclick=async()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); const r=await deferredPrompt.userChoice; if(r.outcome==='accepted') $('btnInstall').style.display='none'; deferredPrompt=null; };
+window.addEventListener('appinstalled',()=>{ $('btnInstall').style.display='none'; msg('✅ تم تثبيت التطبيق على الشاشة الرئيسية','var(--ok)'); });
+if(window.matchMedia('(display-mode: standalone)').matches) $('btnInstall').style.display='none';
 
 // hidden support log: tap logo 5 times
 let taps=0,tt=null; $('logo').onclick=()=>{ taps++; clearTimeout(tt); tt=setTimeout(()=>taps=0,1500); if(taps>=5){ $('dbg').style.display=$('dbg').style.display==='block'?'none':'block'; taps=0; } };
