@@ -62,9 +62,24 @@
 </header>
 
 <div class="wrap">
+  <div id="iosGuide" style="display:none">
+    <div class="card" style="line-height:1.9">
+      <div style="font-size:20px;font-weight:800;margin-bottom:6px">📱 تشغيل الشاشة من الآيفون</div>
+      <div style="color:var(--mut);font-size:14px;margin-bottom:12px">متصفح Safari في الآيفون لا يدعم البلوتوث، لذلك نستخدم تطبيق Bluefy المجاني. الإعداد مرة واحدة فقط:</div>
+      <ol style="padding-inline-start:20px;margin:0;font-size:16px">
+        <li>اضغط الزر وحمّل تطبيق <b>Bluefy</b> من App Store.</li>
+        <li>اضغط <b>«انسخ الرابط»</b> تحت.</li>
+        <li>افتح Bluefy والصق الرابط في خانة العنوان فوق، ثم اضغط <b>Go</b>.</li>
+        <li>لما يسألك عن البلوتوث اضغط <b>سماح (Allow)</b>.</li>
+        <li>اضغط ⭐ في Bluefy لحفظ الصفحة، حتى تفتحها كل مرة بضغطة.</li>
+      </ol>
+      <a class="btn" style="display:block;text-align:center;text-decoration:none;margin-top:14px" href="https://apps.apple.com/app/id1492822055" target="_blank">⬇️ تحميل Bluefy من App Store</a>
+      <button class="btn sec" id="copyLink" style="margin-top:10px">📋 انسخ الرابط</button>
+      <div style="color:var(--mut);font-size:13px;margin-top:10px;text-align:center">الرابط: <b dir="ltr">led.alsumou-jo.com</b></div>
+    </div>
+  </div>
   <div id="noBt" class="warn"></div>
   <button id="btnInstall" class="btn sec" style="display:none;margin-bottom:10px">📲 تثبيت التطبيق على الموبايل</button>
-  <div id="iosHint" class="warn"></div>
   <button id="btnConn" class="btn">🔵 اتصل بالشاشة</button>
 
   <div class="tabs">
@@ -137,12 +152,17 @@ let current=null; // {name, w, idx(Uint8Array rows*w), mode, frames}
 // ===== environment check =====
 (function(){
   const ios=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  if(!navigator.bluetooth){
+  if(navigator.bluetooth) return;
+  $('btnConn').disabled=true;
+  if(ios){
+    $('iosGuide').style.display='block';
+    document.querySelector('.tabs').style.display='none';
+    ['pics','anims','phr','write'].forEach(t=>$('pane-'+t).style.display='none');
+    $('bar').style.display='none'; $('btnConn').style.display='none';
+    $('copyLink').onclick=async()=>{ const u=location.origin+location.pathname; try{ await navigator.clipboard.writeText(u); $('copyLink').textContent='✓ تم نسخ الرابط'; }catch(e){ prompt('انسخ الرابط:',u); } };
+  }else{
     $('noBt').style.display='block';
-    $('noBt').innerHTML = ios
-      ? 'على الآيفون: نزّل تطبيق <b>Bluefy</b> المجاني من <a href="https://apps.apple.com/app/id1492822055" target="_blank">App Store</a>، ثم افتح هذا الرابط من داخله.'
-      : 'هذا المتصفح لا يدعم البلوتوث. افتح الرابط من <b>Google Chrome</b>.';
-    $('btnConn').disabled=true;
+    $('noBt').innerHTML='هذا المتصفح لا يدعم البلوتوث. افتح الرابط من <b>Google Chrome</b>.';
   }
 })();
 
