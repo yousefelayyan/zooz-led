@@ -212,7 +212,7 @@ function quant(ctx,w){ const d=ctx.getImageData(0,0,w,rows).data, idx=new Uint8A
   for(let i=0;i<w*rows;i++) idx[i]=RGB2IDX[(d[i*4]>127?4:0)+(d[i*4+1]>127?2:0)+(d[i*4+2]>127?1:0)]; return {w,idx}; }
 
 function scrollMode(t){ return /[\u0600-\u06FF]/.test(t)?2:1; }
-function setCurrent(name,obj){ current={name,...obj}; $('selName').textContent=name; startPreview(); refreshSend(); msg(''); }
+function setCurrent(name,obj){ current={name,frames:null,...obj}; $('selName').textContent=name; startPreview(); refreshSend(); msg(''); }
 
 // ===== drawing =====
 function drawDots(c,idx,w,ox,size){ const x=c.getContext('2d'); x.fillStyle='#000'; x.fillRect(0,0,c.width,c.height);
@@ -221,13 +221,13 @@ let pvTimer=null;
 function startPreview(){
   clearInterval(pvTimer); const c=$('pv'); let k=0;
   const step=()=>{ if(!current) return;
-    if(current.mode===8){ const n=current.w/32; drawDots(c,current.idx,current.w,(k%n)*32,96); k++; }
+    if(current.frames){ const n=current.w/32; drawDots(c,current.idx,current.w,(k%n)*32,96); k++; }
     else if(current.w>32){ const span=current.w; let off=(k%(span+32))-32; if(current.mode===2) off=span-32-off; const tmp=new Uint8Array(32*32);
       for(let y=0;y<32;y++) for(let x=0;x<32;x++){ const sx=x+off; tmp[y*32+x]= sx>=0&&sx<span? current.idx[y*span+sx]:0; }
       drawDots(c,tmp,32,0,96); k+=2; }
     else { drawDots(c,current.idx,current.w,0,96); }
   };
-  step(); pvTimer=setInterval(step, current.mode===8?350:60);
+  step(); pvTimer=setInterval(step, current.frames?350:60);
 }
 
 // ===== galleries =====
@@ -242,7 +242,7 @@ function makeItem(name,frames,onPick){
   return d;
 }
 LIB.pics.forEach(p=>{ const f=framesFromStrings(p.f); $('pane-pics').appendChild(makeItem(p.n,f,()=>setCurrent(p.n,{w:32,idx:f[0],mode:3}))); });
-LIB.anims.forEach(p=>{ const f=framesFromStrings(p.f); $('pane-anims').appendChild(makeItem(p.n,f,()=>setCurrent(p.n,{...joinFrames(f),mode:8}))); });
+LIB.anims.forEach(p=>{ const f=framesFromStrings(p.f); $('pane-anims').appendChild(makeItem(p.n,f,()=>setCurrent(p.n,{...joinFrames(f),mode:128,frames:f}))); });
 setInterval(()=>{ if($('pane-anims').style.display!=='none') thumbTimers.forEach(t=>t()); },400);
 PHRASES.forEach(([t,c])=>{
   const d=document.createElement('div'); d.className='item';
@@ -267,7 +267,7 @@ $('file').onchange=async e=>{
       const dc=new ImageDecoder({data:await f.arrayBuffer(),type:'image/gif'}); await dc.tracks.ready;
       const n=dc.tracks.selectedTrack.frameCount||1, take=Math.min(8,n), fr=[];
       for(let k=0;k<take;k++){ const {image}=await dc.decode({frameIndex:Math.floor(k*n/take)}); fr.push(draw(image,image.displayWidth,image.displayHeight)); image.close(); }
-      if(fr.length>1){ setCurrent('صورتك المتحركة',{...joinFrames(fr),mode:8}); return; }
+      if(fr.length>1){ setCurrent('صورتك المتحركة',{...joinFrames(fr),mode:128,frames:fr}); return; }
     }
     const im=new Image(); im.onload=()=>setCurrent('صورتك',{w:32,idx:draw(im,im.width,im.height),mode:3}); im.src=URL.createObjectURL(f);
   }catch(err){ log('img: '+err.message); msg('تعذّر فتح الصورة','#ff8080'); }
@@ -289,8 +289,11 @@ $('btnSend').onclick=async()=>{
   busy=true; refreshSend(); $('prog').style.display='block'; $('prog').firstChild.style.width='0';
   msg('جاري الإرسال…');
   try{
-    const {w,idx,mode}=current, data=pack(w,idx);
-    const h=new Uint8Array(40); h.set(HDR,0); h[4]=3; h[5]=rows; h[6]=(w>>8)&255; h[7]=w&255; h[8]=planes; h[9]=SPEED; h[11]=mode; h[39]=xor(h,4,35);
+    const {w,idx,mode}=current;
+    let data;
+    if(current.frames){ const blocks=current.frames.map(f=>pack(32,f)); data=new Uint8Array(blocks.reduce((a,b)=>a+b.length,0)); let o=0; for(const b of blocks){ data.set(b,o); o+=b.length; } }
+    else data=pack(w,idx);
+    const h=new Uint8Array(40); h.set(HDR,0); h[4]=3; h[5]=rows; h[6]=(w>>8)&255; h[7]=w&255; h[8]=planes; h[9]=current.frames?1:SPEED; h[11]=mode; h[39]=xor(h,4,35);
     const pk=[h]; for(let i=0,n=0;i<data.length;i+=CHUNK,n++){ const part=data.slice(i,i+CHUNK), p=new Uint8Array(part.length+2); p[0]=n; p.set(part,1); p[p.length-1]=xor(part); pk.push(p); }
     log(`send "${current.name}" ${w}x${rows} mode=${mode} ${data.length}B ${pk.length}pk`);
     let done=false;
